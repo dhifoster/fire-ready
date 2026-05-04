@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FIRE Ready Snapshot",
+  "description": "The structured output of a completed FIRE Ready interview. Used as input to the report template.",
+  "type": "object",
+  "required": ["user", "cashflow", "netWorth", "spendByCategory", "fire", "rag", "recommendations", "meta"],
+  "properties": {
+    "user": {
+      "type": "object",
+      "required": ["ageNow", "ageTarget", "household", "region", "fireFlavour"],
+      "properties": {
+        "ageNow": { "type": "integer", "minimum": 18, "maximum": 80 },
+        "ageTarget": { "type": "integer", "minimum": 30, "maximum": 80 },
+        "household": { "type": "string", "enum": ["single", "couple", "family", "retired-single", "retired-couple"] },
+        "region": { "type": "string", "description": "e.g. 'London', 'UK (rest)', 'Outside UK'" },
+        "fireFlavour": { "type": "string", "enum": ["lean", "standard", "fat"] },
+        "displayName": { "type": "string", "description": "Optional friendly name for report header" }
+      }
+    },
+    "cashflow": {
+      "type": "object",
+      "required": ["monthlyNetIncome", "monthlySpend", "monthlySurplus", "savingsRatePct"],
+      "properties": {
+        "monthlyNetIncome": { "type": "number", "description": "Take-home after tax, including any pension contributions made by employee/employer" },
+        "monthlySpend": { "type": "number" },
+        "monthlySurplus": { "type": "number", "description": "= monthlyNetIncome - monthlySpend" },
+        "savingsRatePct": { "type": "number", "description": "monthlySurplus / monthlyNetIncome × 100" },
+        "monthlyPensionContributions": { "type": "number", "description": "Combined employee + employer £/month into pensions" }
+      }
+    },
+    "netWorth": {
+      "type": "object",
+      "required": ["cash", "pensions", "isasGia", "propertyEquity", "mortgage", "otherDebt", "total", "investedTotal"],
+      "properties": {
+        "cash": { "type": "number" },
+        "pensions": { "type": "number" },
+        "isasGia": { "type": "number" },
+        "propertyEquity": { "type": "number" },
+        "otherAssets": { "type": "number" },
+        "mortgage": { "type": "number" },
+        "otherDebt": { "type": "number" },
+        "total": { "type": "number", "description": "Sum of assets minus sum of liabilities" },
+        "investedTotal": { "type": "number", "description": "Cash + pensions + ISAs/GIAs + other liquid (excludes residential property unless user said they'd downsize)" }
+      }
+    },
+    "spendByCategory": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "monthly", "benchmarkMonthly"],
+        "properties": {
+          "name": { "type": "string", "enum": ["Housing", "Food & Groceries", "Transport", "Discretionary", "Communication", "Clothing & Footwear", "Household Goods & Services", "Health", "Insurance & Misc", "Education", "Other"] },
+          "monthly": { "type": "number" },
+          "benchmarkMonthly": { "type": "number" },
+          "deltaPct": { "type": "number", "description": "(monthly - benchmark) / benchmark × 100" }
+        }
+      }
+    },
+    "fire": {
+      "type": "object",
+      "required": ["annualSpendInRetirement", "fireNumber", "withdrawalRatePct", "yearsToFire", "projectedAgeAtFire", "realReturnAssumptionPct", "trajectory"],
+      "properties": {
+        "annualSpendInRetirement": { "type": "number" },
+        "fireNumber": { "type": "number" },
+        "withdrawalRatePct": { "type": "number", "default": 4 },
+        "yearsToFire": { "type": "integer", "minimum": 0, "maximum": 60 },
+        "projectedAgeAtFire": { "type": "integer" },
+        "realReturnAssumptionPct": { "type": "number", "default": 5 },
+        "spendMultiplier": { "type": "number", "description": "Used to derive annualSpendInRetirement from current spend" },
+        "trajectory": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["year", "netWorth"],
+            "properties": {
+              "year": { "type": "integer" },
+              "netWorth": { "type": "number" }
+            }
+          }
+        }
+      }
+    },
+    "rag": {
+      "type": "object",
+      "required": ["savingsRate", "emergencyFund", "investmentAllocation", "trajectory"],
+      "properties": {
+        "savingsRate": { "type": "string", "enum": ["RED", "AMBER", "GREEN"] },
+        "emergencyFund": { "type": "string", "enum": ["RED", "AMBER", "GREEN"] },
+        "investmentAllocation": { "type": "string", "enum": ["RED", "AMBER", "GREEN"] },
+        "trajectory": { "type": "string", "enum": ["RED", "AMBER", "GREEN"] }
+      }
+    },
+    "recommendations": {
+      "type": "array",
+      "minItems": 0,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "required": ["title", "rationale", "expectedImpact"],
+        "properties": {
+          "title": { "type": "string" },
+          "rationale": { "type": "string" },
+          "expectedImpact": { "type": "string" }
+        }
+      }
+    },
+    "meta": {
+      "type": "object",
+      "required": ["generatedAt", "skillVersion"],
+      "properties": {
+        "generatedAt": { "type": "string", "format": "date-time" },
+        "skillVersion": { "type": "string" },
+        "monzoConnected": { "type": "boolean" },
+        "benchmarkSourceYear": { "type": "string" }
+      }
+    }
+  }
+}
