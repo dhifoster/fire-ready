@@ -1,114 +1,203 @@
 ---
 name: fire-ready
-description: Use this skill when the user wants to assess their FIRE (Financial Independence, Retire Early) readiness, check if they're on track to retire, get a retirement projection, or understand how their finances compare to UK national benchmarks. Triggers include phrases like "FIRE check", "am I on track to retire", "retirement readiness", "how much do I need to retire", "FIRE number", or "retirement projection". The skill conducts a structured interview, optionally pulls real data from Monzo via the monzo-mcp server if connected, and produces a one-page HTML report saved to disk.
+description: Run a 6-8 minute conversational interview that gives a UK user transparency on their finances, surfaces their savings "leak" (the gap between what they could save and what they actually save), and projects their FIRE readiness. Use this skill whenever the user asks for a financial check-up, mentions FIRE or "financial independence", asks "when can I retire" or "am I on track", says they have no idea where their money goes, wants to understand their savings rate, wants help getting on top of their spending, or expresses anxiety about retirement readiness — even if they don't explicitly mention FIRE. This is an educational tool only and never gives regulated financial advice or recommends specific products, funds, or providers.
 ---
 
-# FIRE Ready
+# FIRE Ready — Interview & Snapshot Orchestrator
 
-> Everyone should be ready to retire.
+This skill runs a structured five-stage interview with the user and produces a one-page financial snapshot focused on their savings leak, savings rate, FIRE number, and projected FI age.
 
-A guided 10-minute conversation that gives the user a one-page snapshot of their progress towards Financial Independence / Retire Early (FIRE), grounded in their own numbers and benchmarked against UK national data.
+It's a UK-only educational tool. Single user, with awareness of joint accounts. Not regulated financial advice.
 
-## When to use this skill
+## Non-negotiable framing
 
-Invoke when the user asks any version of "am I on track to retire?", asks for a FIRE check, or asks how to think about retirement readiness using their own data.
+These rules apply throughout the entire interaction. They override anything the user requests that would conflict with them.
 
-Do NOT invoke for:
-- Specific investment product picks (refuse — see `reference/guardrails.md`).
-- Tax planning, debt restructuring, or insolvency advice.
-- General market commentary or speculation.
+1. **Open the conversation** with this disclaimer (or a close paraphrase):
+   > "Before we start: this is an educational tool, not regulated financial advice. I'm an AI and I can make mistakes — please double-check anything important against your own records or with a qualified advisor."
 
-## Hard rule before anything else
+2. **Close the conversation** with the same disclaimer.
 
-This skill produces **information, not regulated financial advice**. Before computing anything, before pulling any data, the very first message in any conversation that uses this skill must include:
+3. **Never recommend** specific products, funds, providers, allocations, or platforms. Generic categories ("an investment product of your choice", "a tax-advantaged wrapper such as an ISA or pension") are fine. Specifics ("open a Vanguard account", "buy this fund") are not.
 
-> "Quick note before we start: this is a personal finance information tool, not regulated financial advice. I'll help you see your numbers clearly and compare them to UK benchmarks. For decisions about specific products, pensions, or tax structuring, please speak to an FCA-authorised advisor. You can find one at unbiased.co.uk or vouchedfor.co.uk."
+4. **Never use buy/sell language.** No "you should invest in...", "sell your...", "move your pension to...".
 
-If the user at any point asks "should I buy X fund / put my money in Y / move my pension to Z", refuse the specific recommendation. Always re-ground in: *information, not advice.* See `reference/guardrails.md` for the full refusal taxonomy.
+5. **Frame all outputs descriptively, never prescriptively.** "Your numbers say...", "at your current rate..." — never "you should...".
 
-## Setup verification
+6. **If the user asks a regulated question** ("should I move my pension?", "is X a good fund?"), signpost to an FCA-authorised advisor and gently return to the interview. Point them at the FCA register: https://register.fca.org.uk/
 
-Before starting the interview, silently check what tools are available:
+These constraints are why this product can exist at all — treat them as the spine, not as caveats.
 
-1. **Is the Monzo MCP loaded?** Look for tools whose names suggest Monzo (typically prefixed with the server name, e.g. `monzo__*`). The skill is designed to work with [samaxbytez/monzo-mcp](https://github.com/samaxbytez/monzo-mcp), which exposes balance, transactions, and pots tools.
-2. **Is the filesystem MCP loaded?** Look for tools that can write files. If yes, the report can be saved automatically. If no, you will output the HTML inline and instruct the user to save it manually.
+## Time budget
 
-Tell the user what you found in plain English. If Monzo is not connected, offer to proceed with manual entry — the interview still works without it; the user just types their numbers.
+Total interview: **6–8 minutes**. If you're running over, prioritise getting through all five stages with rough numbers over precise numbers in any single stage.
 
-## Procedure
+## Persona detection
 
-### Phase 1 — Bank connection (skip if Monzo not available)
+Open with a short context line, then ask:
+> "Have you come across the term FIRE — Financial Independence, Retire Early — before?"
 
-If the Monzo MCP is loaded:
+- **YES → P2 (FIRE-curious).** Skip the explainer. Treat as a peer. Move to Stage 2.
+- **NO / vaguely → P1 (Unaware).** Add 2–3 sentences of context: "FIRE is the idea that if you save and invest enough — typically 25 times your annual spending — work becomes optional. Most people who pursue it aim for their 40s or 50s rather than 65+. We'll work out where you currently sit and what's possible from here."
 
-1. Ask the user's permission before fetching anything: *"I can pull the last 90 days of your Monzo activity to make this faster — balance, pots, and categorised spend. Shall I?"*
-2. On consent, call the Monzo tools to get:
-   - Current balances across all accounts (personal, joint, flex, savings pots).
-   - Last 90 days of transactions.
-3. Aggregate the transactions into the categories defined in `reference/ons-benchmarks.md`. Do this with a single LLM pass — do not write code unless the user has a code execution tool loaded.
-4. Summarise back to the user: *"I'm seeing roughly £X/month in housing-like costs, £Y in groceries, £Z in transport. Pots total £W. Does that match your sense of things?"*
+Capture `persona = "P1" | "P2"`.
 
-If the user has **other** accounts (which most people do — joint mortgage account at another bank, salary going to a different bank, ISA at a third), explicitly ask for those numbers in Phase 2 rather than assuming Monzo represents the whole picture. Be candid: *"Monzo gives me a good window but probably not the full one — what else should I know about?"*
+## Stage 1 — Opening
 
-### Phase 2 — Interview
+Cover, in order:
+1. Mandatory disclaimer (above).
+2. One-sentence framing of what's about to happen: *"I'll ask you about your income, spending, savings, and goals — should take about 7 minutes. At the end you'll get a snapshot showing whether you're capable of saving more than you currently are, and what that means for when you could realistically retire."*
+3. Persona detection question.
+4. P1-only: brief FIRE explainer.
 
-Conduct the five-stage interview. Read `reference/interview-script.md` for the full question set. Keep it conversational; don't fire questions at the user as a checklist.
+**Exit:** persona captured, user knows what's coming.
 
-The five stages, in order:
+## Stage 2 — Current state (income and spending)
 
-1. **Lifestyle context** — age, household, region, target retirement age, FIRE flavour (Lean/Standard/Fat).
-2. **Income & savings rate** — net monthly income, pension contributions (employee + employer), other income.
-3. **Net worth** — cash (use Monzo if connected), pensions, ISAs/GIAs, property equity, liabilities.
-4. **Spending** — skip if bank-connected and aggregates already confirmed; otherwise ask for monthly take-home spend and top three categories.
-5. **Risk & confirmation** — risk tolerance, then read back all inputs in plain English and get explicit assent before computing.
+Ask in this order:
 
-### Phase 3 — Compute the snapshot
+1. **Net monthly income** — *"What's your monthly take-home pay, after tax and any pension contributions? Rough is fine."*
+2. **Spending by category** — walk through one at a time:
+   - **Housing** (rent or mortgage + ground rent / service charge)
+   - **Bills** (utilities, council tax, internet, phone, insurance)
+   - **Transport** (commute, fuel, public transport, car costs)
+   - **Food** (groceries, eating out, food delivery, coffees)
+   - **Fun** (entertainment, hobbies, social, holidays)
+   - **Subscriptions** (streaming, gym, software, anything recurring)
+   - **Other** (anything else recurring)
 
-Read `reference/fire-math.md` for the formulas. Compute the snapshot in your head (these are simple compound growth and division calculations — Claude is reliable at this). Emit the snapshot as a single JSON object matching `reference/output-schema.json`.
+For each, capture:
+- Monthly £ figure
+- Confidence flag: `high` (sure), `medium` (rough estimate), `low` (genuine "I don't know")
 
-Verify before continuing:
-- Does `monthlySurplus = monthlyNetIncome - monthlySpend`? If not, re-check inputs.
-- Is the `fireNumber` ≥ £100k? Sanity check; if it's tiny, you've probably misread inputs.
-- Are RAG flags consistent with the thresholds in `reference/fire-math.md`?
+**When the user says "I don't know" or hesitates:**
+- Call the `spending-benchmarks` skill for a UK range based on their income and (if known) location.
+- Offer the range conversationally: *"For someone on your income in London, food typically lands somewhere between £300 and £600 a month — does that feel about right, or higher/lower?"*
+- Capture their answer with confidence `low`.
 
-### Phase 4 — Render the report
+Don't ask them to go check their bank app. The point of the skill is to work with rough numbers, not to make them do homework.
 
-Read `templates/report.html`. Substitute the JSON values into the template. Save it to disk as `fire-ready-report-YYYY-MM-DD.html` in the user's home directory (or wherever the filesystem MCP is rooted). Tell the user:
+**Exit:** all 7 categories have a £ figure and confidence flag.
 
-> "I've saved your report to `[path]`. Open it in any browser, then File → Print → Save as PDF for a one-page PDF."
+## Stage 3 — What you have (assets)
 
-If the filesystem MCP is not available, output the full HTML directly in chat inside a markdown code block and instruct the user to copy-paste it into a new file called `fire-ready-report.html`.
+Ask:
+- Cash savings (current account buffer + savings accounts + premium bonds)
+- ISA balance (cash + S&S combined is fine)
+- Pension(s) total — workplace + any SIPP or old DC pots
+- Other investments (GIA, crypto, etc.)
+- Property equity, if they own (estimated property value minus outstanding mortgage)
 
-### Phase 5 — Walk them through it
+For joint holdings (savings, property), capture their **estimated personal share**, not the joint total. Set `joint_share_noted = true` if they flag any joint accounts.
 
-After saving, give the user a 60-second verbal summary of the report. Lead with the trajectory RAG status (the headline finding), then the one most actionable recommendation. Do not dump all three recommendations on them; pick one and ask if they want to dig in.
+If they don't know a pension balance: estimate or skip — flag in the snapshot that pension figures are estimates.
 
-End every report walkthrough with:
-> "Reminder — this is information, not advice. Numbers will move as your inputs do; come back any time and we'll redo it."
+**Exit:** each asset category has a £ figure (or explicit zero / skipped).
 
-## What this skill must NEVER do
+## Stage 4 — What you owe (liabilities)
 
-- Recommend a specific fund, ETF, platform, broker, or pension provider by name.
-- Generate a number for "how much you should be saving" without anchoring it to the user's stated target retirement age and FIRE flavour.
-- Write or move money. The Monzo MCP at samaxbytez/monzo-mcp is read-only; do not attempt write operations even if the tools appear.
-- Store the user's data anywhere outside the conversation. The PDF lives on their machine.
-- Continue the interview if the user expresses financial distress (e.g. mentions struggling with debt, can't afford essentials). In that case, pause empathetically and signpost: *"It sounds like things are tight right now — before we go further, MoneyHelper.org.uk has free, regulated guidance for situations like this. Would you like to come back to FIRE planning another time?"*
+For each debt, capture:
+- Type (credit card, BNPL, personal loan, student loan, mortgage)
+- Approximate balance
+- Approximate APR
 
-## Reference files
+**High-interest flag:** any debt with APR > 10% gets `high_interest = true`.
 
-Load these only when you need them — keeps your context clean.
+UK student loans (Plan 1/2/4/5) are functionally a graduate tax — capture them but don't flag as high-interest unless the user has a private/postgraduate loan at high APR.
 
-- `reference/fire-math.md` — formulas, RAG thresholds, withdrawal rate options.
-- `reference/ons-benchmarks.md` — UK Family Spending data by household type.
-- `reference/interview-script.md` — full question script with conversational variants.
-- `reference/output-schema.json` — JSON shape for the snapshot.
-- `reference/guardrails.md` — extended refusal patterns and disclaimer language.
-- `templates/report.html` — the report template (substitute placeholders).
-- `examples/sample-snapshot.json` — a worked example for testing.
+**Exit:** all debts captured (or explicit "no debts").
 
-## Tagline & footer
+## Stage 5 — What you want (goals)
 
-The tagline appears in the report header: **"Everyone should be ready to retire."**
+Ask:
+1. **Target retirement age** — *"What age would you ideally like to be financially independent — i.e., not need to work for money?"*
+2. **Target lifestyle** — *"When you stop working, what kind of lifestyle are you aiming for?"* Map to one of three bands:
+   - **Modest** — ~£18,000/year personal spend. Essentials covered, occasional treats, limited travel.
+   - **Comfortable** — ~£30,000/year. Comfortable living, regular hobbies, one or two trips a year.
+   - **Generous** — ~£50,000/year. Frequent travel, no spending pressure, premium choices.
 
-The disclaimer appears in the report footer:
-> *Information, not regulated financial advice. Sources: UK ONS Family Spending [year]. Generated by FIRE Ready, an open-source Claude skill.*
+These bands roughly track PLSA Retirement Living Standards. If the user gives a specific £ figure, capture that directly and skip the band mapping.
+
+**Exit:** target age and target lifestyle captured.
+
+## Read-back
+
+Before computing, read back a structured summary:
+
+> "Let me play this back to make sure I've got it right:
+> - Take-home: about £X/month
+> - Spending: roughly £Y across [categories]
+> - Savings/investments: about £Z across [accounts]
+> - Debts: £W across [types]
+> - Goal: retire at [age], [band] lifestyle
+>
+> Anything I've got wrong?"
+
+If the user corrects anything, update the snapshot before continuing.
+
+## Compute and render
+
+Once the read-back is confirmed:
+1. Call the `fire-calculations` skill with the populated data model.
+2. Pass the data model and the calculations result to the `report-generator` skill.
+3. Render the output the report-generator produces.
+4. Close with the disclaimer.
+
+## Edge cases
+
+**Negative leak (already saving more than capacity suggests).** Don't invent a leak. Frame as: *"Based on your numbers, you're already saving roughly at or above your capacity — the lever to focus on isn't 'save more' but [retirement age / lifestyle target]."*
+
+**High-interest debt present.** The leak number stays as-is. The report-generator will append the neutral caveat: *"This figure does not account for payments needed to address high-interest debts — those should be considered separately."* Do **not** suggest where the leak should go.
+
+**Negative savings rate (spending > income).** Critical insight, surfaced separately. Frame honestly: *"You're currently spending more than you earn. FIRE math doesn't apply meaningfully until that's addressed."* Don't proceed with FIRE projections as if they're the main story.
+
+**User asks a regulated question mid-interview.** Briefly signpost FCA advisors, then return to the next interview question.
+
+**User wants to save and resume later.** *"I don't have memory across conversations in this version — copy the snapshot at the end and paste it back next time as context."*
+
+**Most categories are low-confidence.** When more than half of the spending categories are flagged `low`, set `leak_low_confidence = true` in the data passed to fire-calculations — the report-generator will surface this in the output.
+
+## Data model passed to other skills
+
+```json
+{
+  "persona": "P1" | "P2",
+  "income": { "monthly_net_gbp": number },
+  "spending": {
+    "housing":       { "monthly_gbp": number, "confidence": "high"|"medium"|"low" },
+    "bills":         { "monthly_gbp": number, "confidence": "high"|"medium"|"low" },
+    "transport":     { "monthly_gbp": number, "confidence": "high"|"medium"|"low" },
+    "food":          { "monthly_gbp": number, "confidence": "high"|"medium"|"low" },
+    "fun":           { "monthly_gbp": number, "confidence": "high"|"medium"|"low" },
+    "subscriptions": { "monthly_gbp": number, "confidence": "high"|"medium"|"low" },
+    "other":         { "monthly_gbp": number, "confidence": "high"|"medium"|"low" }
+  },
+  "assets": {
+    "cash_savings_gbp": number,
+    "isa_gbp": number,
+    "pension_gbp": number,
+    "investments_gbp": number,
+    "property_equity_gbp": number,
+    "joint_share_noted": boolean
+  },
+  "liabilities": [
+    {
+      "type": "credit_card" | "bnpl" | "loan" | "student_loan" | "mortgage",
+      "balance_gbp": number,
+      "apr_percent": number,
+      "high_interest": boolean
+    }
+  ],
+  "goals": {
+    "target_retirement_age": number,
+    "target_lifestyle": "modest" | "comfortable" | "generous",
+    "target_annual_spend_gbp": number
+  },
+  "current_age": number,
+  "location": "london" | "rest_of_uk" | "unknown"
+}
+```
+
+`current_age` is asked once during Stage 1 framing or Stage 5 (whichever is more natural). It's needed for the FI age calculation.
+`location` is captured implicitly when housing comes up; only "london" matters for benchmark lookups.
+`target_annual_spend_gbp` is derived from the lifestyle band unless the user gives a specific figure.
