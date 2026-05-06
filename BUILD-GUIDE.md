@@ -15,7 +15,7 @@ It's written for someone who's comfortable in a terminal but isn't necessarily a
 5. Run manual evals against fixture personas
 6. Push to GitHub
 
-Total time, first pass: about 2–3 hours.
+Total time, first pass: about 1-2 hours.
 
 ---
 

@@ -13,3 +13,4 @@ mnt/
 /evals/personal/
 .env
 .env.local
+.claude/
