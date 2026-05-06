@@ -4,6 +4,8 @@ A Claude-skill-based conversational agent that runs a 6–8 minute interview to 
 
 Educational tool. UK-only. Single user, with awareness of joint accounts. **Not regulated financial advice.**
 
+Note from the creator: I've purposefully added the vibed-PRD and Build Guide. I want to be transparent to other product managers on my workflow whilst we're all building our product management AI playbooks so other people can learn. Questions and feedback always welcome. 
+
 ---
 
 ## Status
@@ -48,6 +50,11 @@ skills/
     └── SKILL.md
 ```
 
+## Requirements
+
+Claude Desktop (Mac or Windows) — download at claude.ai/download
+A terminal application (Terminal on Mac, Command Prompt on Windows)
+
 ## Quick start
 
 See [`BUILD-GUIDE.md`](./BUILD-GUIDE.md) for the full walkthrough. Short version:
@@ -55,7 +62,7 @@ See [`BUILD-GUIDE.md`](./BUILD-GUIDE.md) for the full walkthrough. Short version
 1. Clone this repo.
 2. Copy the contents of `skills/` into your Claude Desktop skills directory (path varies by OS — check Claude Desktop's settings).
 3. Restart Claude Desktop.
-4. Open a new chat and say *"Run a FIRE check on me."*
+4. Open a new chat and the agent will run through your first conversation. Prompt:  *"Run a FIRE check on me."* or ask something along the lines of: *I have no idea where my money goes. Can you help me figure out if I'm on track to retire? Am I saving enough?* 
 
 ## What's not in MVP
 
@@ -68,6 +75,10 @@ See [`BUILD-GUIDE.md`](./BUILD-GUIDE.md) for the full walkthrough. Short version
 
 See [`PRD.md`](./PRD.md) for the full out-of-scope list and roadmap candidates.
 
+## Privacy & Security
+
+Your transaction data you share stays within your Claude Project and is subject to Anthropic's standard privacy policy. Version MVP 0.1 does not ask for any financial or banking credentials and future versions of this product will be stored in a local .env file on your own computer, unless explicity stated.
+
 ## Documents
 
 - [`PRD.md`](./PRD.md) — Product requirements
@@ -76,10 +87,10 @@ See [`PRD.md`](./PRD.md) for the full out-of-scope list and roadmap candidates.
 
 ## Disclaimer
 
-This is an educational tool. It is **not** regulated financial advice. It does not recommend specific products, funds, providers, or allocations. For regulated advice, consult an [FCA-authorised advisor](https://register.fca.org.uk/).
+This is an educational tool. It is **not** regulated financial advice. It does not recommend specific products, funds, providers, or allocations. For regulated advice, consult an [FCA-authorised advisor](https://register.fca.org.uk/). Always verify tax figures and other thresholds with official government sources before acting on them.
 
 The skill is provided as-is. Use at your own risk.
 
 ## License
 
-[Choose a license — MIT is a reasonable default for an open-source MVP.]
+MIT
