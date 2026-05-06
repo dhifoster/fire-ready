@@ -1,0 +1,15 @@
+# macOS
+**/.DS_Store
+
+# Build artefacts
+mnt/
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Personal data
+/evals/personal/
+.env
+.env.local
